@@ -1,113 +1,245 @@
-# include <unistd.h>
-# include <iostream>
-# include <wait.h>
+#include <unistd.h>
+#include <sys/wait.h>
+
+#include <iostream>
+#include <cstdlib>
+#include <ctime>
+#include <chrono>
+
 using namespace std;
 
-void bubble (int * v, int size)
-				{
-					for (int i = 0; i < size; i++)
-					{
-						for (int j = 0; j < size-1; j++)
-						{
-							if (v[j] > v[i+1])
-							{
-								int tmp = v[j];
-								v[j] = v[j+1];
-								v[j+1] = tmp;
-							}
-						}
-					}
-				}
-				
-void shell (int * v, int size)
-			{
-				int s = 0;
-				int j = 0;
-				do 
-				{
-					s = 3*s+1;
-				}
-				while (s <= size);
-				do
-				{
-					s = (s - 1) / 3 + 1;
-					for (int i = 0; i < size; i++)
-					{
-						j = i - s;
-						int tmp = v[j + s];
-						while (j >= 0 && tmp < v[j])
-						{
-							v[j+s] = v[j];
-							j -=s;
- 						}
- 						v[j+s] = tmp;
-					}
-					while (s != 1);
-				}
-			}
+// ====================
+// Bubble Sort
+// ====================
+void bubble(int* v, int size)
+{
+    for (int i = 0; i < size - 1; i++)
+    {
+        for (int j = 0; j < size - 1 - i; j++)
+        {
+            if (v[j] > v[j + 1])
+            {
+                int tmp = v[j];
+                v[j] = v[j + 1];
+                v[j + 1] = tmp;
+            }
+        }
+    }
+}
 
-void qs (int * v, int low, int high)
-			{
-				int tmp = 0;
-				int l = low;
-				int r = high;
-				int m = v[(l + r) / 2];
-				do
-				{
-					while (v[l] < m) l++;
-					while (v[r] > m) r--;
-					if (l <= r)
-					{
-						tmp = v[l];
-						v[l] v[r];
-						v[r] = tmp;
-						l++;
-						r--;
-					}
-				}	while (l < r):
-					if (l < high) qs(v,l,high);
-					if (r > low) qs(v,low,r);
-			}
-			void quicks (int * v, int size)
-			{
-				qs (v,0, size -1);
-			}
+// ====================
+// Shell Sort
+// ====================
+void shell(int* v, int size)
+{
+    for (int gap = size / 2; gap > 0; gap /= 2)
+    {
+        for (int i = gap; i < size; i++)
+        {
+            int temp = v[i];
+            int j = i;
 
+            while (j >= gap && v[j - gap] > temp)
+            {
+                v[j] = v[j - gap];
+                j -= gap;
+            }
+
+            v[j] = temp;
+        }
+    }
+}
+
+// ====================
+// Quick Sort
+// ====================
+void qs(int* v, int low, int high)
+{
+    int left = low;
+    int right = high;
+
+    int middle = v[(low + high) / 2];
+
+    while (left <= right)
+    {
+        while (v[left] < middle)
+        {
+            left++;
+        }
+
+        while (v[right] > middle)
+        {
+            right--;
+        }
+
+        if (left <= right)
+        {
+            int tmp = v[left];
+            v[left] = v[right];
+            v[right] = tmp;
+
+            left++;
+            right--;
+        }
+    }
+
+    if (low < right)
+    {
+        qs(v, low, right);
+    }
+
+    if (left < high)
+    {
+        qs(v, left, high);
+    }
+}
+
+void quicks(int* v, int size)
+{
+    if (size > 1)
+    {
+        qs(v, 0, size - 1);
+    }
+}
+
+// ====================
+// Вывод массива
+// ====================
+void printArray(int* v, int size)
+{
+    for (int i = 0; i < size; i++)
+    {
+        cout << v[i] << " ";
+    }
+
+    cout << endl;
+}
+
+// ====================
+// main
+// ====================
 int main()
 {
-	int n = 0;
-	cin >> n;
-	int massiv[n]; // создали массив
-	// fill array
+    int n;
 
-	for (int i = 0; i < 3; i++)
-	{
-		if (fork())
-		{
-			if (i == 0) // bubble sort
-			{
-			}
-			
-			
-		}
-		else
-		{ if (i == 0) // shell sort
-		{
-			bubble(massiv, n);
-			
-		}
-		if (i == 1)
-		{
-			shell(massiv, n);
-		}
-		if (i == 2) // quick sort
-		{
-			qs(massiv, int low, int high);
-		}
-		}
-			
-	}
-	
-	wait(0);wait(0);wait(0);
+    cout << "Enter array size: ";
+    cin >> n;
 
+    if (n <= 0)
+    {
+        cout << "Array size must be greater than 0." << endl;
+        return 1;
+    }
+
+    // Создаём массив
+    int* massiv = new int[n];
+
+    // Инициализация генератора случайных чисел
+    srand(time(nullptr));
+
+    // Заполняем массив
+    for (int i = 0; i < n; i++)
+    {
+        massiv[i] = rand() % 1000;
+    }
+
+    cout << "\nOriginal array:\n";
+
+    if (n < 50)
+    {
+        printArray(massiv, n);
+    }
+    else
+    {
+        cout << "Array is too large to display." << endl;
+    }
+
+    // Создаём 3 дочерних процесса
+    for (int i = 0; i < 3; i++)
+    {
+        pid_t pid = fork();
+
+        // Ошибка fork
+        if (pid < 0)
+        {
+            perror("fork");
+            delete[] massiv;
+            return 1;
+        }
+
+        // =========================
+        // Дочерний процесс
+        // =========================
+        if (pid == 0)
+        {
+            auto start = chrono::high_resolution_clock::now();
+
+            if (i == 0)
+            {
+                bubble(massiv, n);
+            }
+            else if (i == 1)
+            {
+                shell(massiv, n);
+            }
+            else if (i == 2)
+            {
+                quicks(massiv, n);
+            }
+
+            auto finish = chrono::high_resolution_clock::now();
+
+            auto duration =
+                chrono::duration_cast<chrono::microseconds>
+                (finish - start);
+
+            cout << "\nChild process PID: " << getpid() << endl;
+
+            if (i == 0)
+            {
+                cout << "Bubble Sort" << endl;
+            }
+            else if (i == 1)
+            {
+                cout << "Shell Sort" << endl;
+            }
+            else
+            {
+                cout << "Quick Sort" << endl;
+            }
+
+            if (n < 50)
+            {
+                cout << "Sorted array: ";
+                printArray(massiv, n);
+            }
+
+            cout << "Time: "
+                 << duration.count()
+                 << " microseconds"
+                 << endl;
+
+            // Очень важно!
+            // Потомок должен завершиться,
+            // чтобы не создавать новых потомков.
+            _exit(0);
+        }
+
+        // Родитель продолжает цикл
+    }
+
+    // =========================
+    // Родитель ждёт 3 процесса
+    // =========================
+
+    for (int i = 0; i < 3; i++)
+    {
+        wait(nullptr);
+    }
+
+    cout << "\nAll child processes finished." << endl;
+
+    delete[] massiv;
+
+    return 0;
 }
