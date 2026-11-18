@@ -1,0 +1,170 @@
+
+#include <iostream>
+#include <cstring>
+#include <cstdlib>
+#include <cerrno>
+#include <sys/types.h>
+#include <sys/ipc.h>
+#include <sys/shm.h>
+
+using namespace std;
+
+const int SHM_SIZE = 1024;
+
+void printUsage()
+{
+    cout << "Usage:" << endl << endl;
+    cout << "./a.out c Key          - Create Shared memory" << endl;
+    cout << "./a.out s Key Message  - Send message to Shared memory" << endl;
+    cout << "./a.out r Key          - Read message from shared memory" << endl;
+    cout << "./a.out d Key          - Remove Shared memory" << endl;
+}
+
+int main(int argc, char* argv[])
+{
+    // Проверяем количество аргументов
+    if (argc < 2)
+    {
+        printUsage();
+        return 0;
+    }
+
+    // Получаем режим работы программы
+    string mode = argv[1];
+
+    // Проверяем, передан ли ключ
+    if (argc < 3)
+    {
+        printUsage();
+        return 1;
+    }
+
+    // Преобразуем ключ из строки в число
+    char* end;
+    errno = 0;
+    long keyValue = strtol(argv[2], &end, 10);
+
+    if (errno != 0 || *end != '\0' ||
+        keyValue <= 300 || keyValue > INT_MAX)
+    {
+        cerr << "Error: Key must be a positive integer greater than 300!" << endl;
+        return 1;
+    }
+
+    key_t key = static_cast<key_t>(keyValue);
+
+    // РЕЖИМ 1: СОЗДАНИЕ РАЗДЕЛЯЕМОЙ ПАМЯТИ
+    if (mode == "c")
+    {
+        int shmid = shmget(key, SHM_SIZE, IPC_CREAT | 0644);
+
+        if (shmid < 0)
+        {
+            perror("shmget");
+            return 1;
+        }
+
+        cout << "Shared memory created..." << endl;
+    }
+
+    // РЕЖИМ 2: ЗАПИСЬ СООБЩЕНИЯ
+    else if (mode == "s")
+    {
+        if (argc < 4)
+        {
+            cerr << "Error: Message is missing!" << endl;
+            return 1;
+        }
+
+        if (strlen(argv[3]) >= SHM_SIZE)
+        {
+            cerr << "Error: Message is too long!" << endl;
+            return 1;
+        }
+
+        int shmid = shmget(key, SHM_SIZE, 0);
+
+        if (shmid < 0)
+        {
+            perror("shmget");
+            return 1;
+        }
+
+        char* addr = (char*)shmat(shmid, nullptr, 0);
+
+        if (addr == (char*)-1)
+        {
+            perror("shmat");
+            return 1;
+        }
+
+        strcpy(addr, argv[3]);
+
+        if (shmdt(addr) < 0)
+        {
+            perror("shmdt");
+            return 1;
+        }
+
+        cout << "Shared memory filled..." << endl;
+    }
+
+    // РЕЖИМ 3: ЧТЕНИЕ СООБЩЕНИЯ
+    else if (mode == "r")
+    {
+        int shmid = shmget(key, SHM_SIZE, 0);
+
+        if (shmid < 0)
+        {
+            perror("shmget");
+            return 1;
+        }
+
+        char* addr = (char*)shmat(shmid, nullptr, SHM_RDONLY);
+
+        if (addr == (char*)-1)
+        {
+            perror("shmat");
+            return 1;
+        }
+
+        cout << "Shared memory reading..." << endl;
+        cout << endl;
+        cout << "Message from memory: " << addr << endl;
+
+        if (shmdt(addr) < 0)
+        {
+            perror("shmdt");
+            return 1;
+        }
+    }
+
+    // РЕЖИМ 4: УДАЛЕНИЕ РАЗДЕЛЯЕМОЙ ПАМЯТИ
+    else if (mode == "d")
+    {
+        int shmid = shmget(key, SHM_SIZE, 0);
+
+        if (shmid < 0)
+        {
+            perror("shmget");
+            return 1;
+        }
+
+        if (shmctl(shmid, IPC_RMID, nullptr) < 0)
+        {
+            perror("shmctl");
+            return 1;
+        }
+
+        cout << "SM-block killed!" << endl;
+    }
+
+    // НЕИЗВЕСТНЫЙ РЕЖИМ
+    else
+    {
+        printUsage();
+        return 1;
+    }
+
+    return 0;
+}
